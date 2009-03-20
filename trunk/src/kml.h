@@ -17,38 +17,279 @@
 #ifndef _KML_H
 #define _KML_H
 
-void kml_header (
-	buffer *buf);
+/*******************************************************************************
+ function to create a new kml
+ 
+ args:
+								kmlfile			the full path of the kml file
+								kmzfile			the full path of the kmz file
+ 
+ returns:				pointer to the KML struct
+*******************************************************************************/
 
+KML *KML_new(
+	char *kmlfile,
+	char *kmzfile);
 
-void kml_footer (
-	buffer *buf);
+/*******************************************************************************
+ function to free a kml struct
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
 
-void kml_placemark_header (
-	buffer *buf,
+void KML_free(
+	KML *kml);
+
+/*******************************************************************************
+ function to write a kml to disk
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_write(
+	KML *kml);
+
+/*******************************************************************************
+ function to add a kml header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_header (
+	KML *kml);
+
+/*******************************************************************************
+ function to add a kml footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_footer (
+	KML *kml);
+
+/*******************************************************************************
+ function to add a kml placemark header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								name			the name of the placemark or NULL for none
+								desc			the description of a placemark or NULL for none
+								styleid		the style id for the placemark
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_placemark_header (
+	KML *kml,
 	char *name,
 	char *desc,
 	char *styleid);
 
-	
-void kml_linestring_header (
-	buffer *buf,
+/*******************************************************************************
+ function to add a placemark footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_placemark_footer (
+	KML *kml);
+
+/*******************************************************************************
+ function to add a icon header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_icon_header (
+		KML *kml);
+
+/*******************************************************************************
+ function to add a icon footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_icon_footer (
+	KML *kml);
+
+/*******************************************************************************
+ function to add a linestring header to a kml
+ 
+ args:
+								kml					pointer to the kml struct
+								extrude			extruded? 0/1
+								tessellate	tessellate? 0/1
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_linestring_header (
+	KML *kml,
 	int extrude,
 	int tessellate);
 
-void kml_linestring_footer (
-	buffer *buf);
+/*******************************************************************************
+ function to add a linestring footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
 
-void kml_linestyle (
-	buffer *buf,
+void KML_linestring_footer (
+	KML *kml);
+
+/*******************************************************************************
+ function to add a polygon header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								extrude			extruded? 0/1
+								tessellate	tessellate? 0/1
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_polygon_header (
+	KML *kml,
+	int extrude,
+	int tessellate);
+
+/*******************************************************************************
+ function to add a polygon footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_polygon_footer (
+	KML *kml);
+
+/*******************************************************************************
+ function to add coordinates of a point to a kml
+ 
+ args:
+								kml					pointer to the kml struct
+								precision		number of places to the right of the point to print
+								x						x coord of the point
+								y						y coord of the point
+								z						z coord of the point NULL if 2d
+	
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_coordinates (
+	KML *kml,
+	int precision,												
+	double *x,
+	double *y,
+	double *z);
+
+/*******************************************************************************
+ function to add a linestyle to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								id				the style id
+								rgb				rgb value for the style
+								alpha			the alpha value for the style
+								width			the line width
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_linestyle (
+	KML *kml,
 	char *id,
 	char *rgb,
 	char *alpha,
 	int width);
 
+/*******************************************************************************
+ function to add a polystyle to a kml
+ 
+ args:
+								kml					pointer to the kml struct
+								id					the style id
+								linergb			rgb value for the line style
+								linealpha		the alpha value for the line style
+								width				the line width
+								polyrgb			rgb value for the fill style
+								polyalpha		the alpha value for the fill style
+ 
+ returns:
+								nothing
+*******************************************************************************/
 
-void kml_placemark_footer (
-	buffer *buf);
+void KML_polystyle (
+	KML *kml,
+	char *id,
+	char *linergb,
+	char *linealpha,
+	int width,
+	char *polyrgb,
+	char *polyalpha);
+
+/*******************************************************************************
+ function to add a iconstyle to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								id				the style id
+								rgb				rgb value for the style
+								alpha			the alpha value for the style
+								width			the line width
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_iconstyle (
+	KML *kml,
+	char *id,
+	char *rgb,
+	char *alpha,
+	float scale,
+	float heading,
+	char *icon);
 
 
 

@@ -30,6 +30,7 @@ typedef struct {
 	char *buf;
 	size_t alloced;
 	size_t used;
+	int indent;
 } buffer;
 
 /*******************************************************************************
@@ -47,6 +48,23 @@ typedef struct {
 int buffer_printf(
 	buffer *buf,
 	char *fmt,
+	...);
+
+/*******************************************************************************
+	function to print to a buffer with no indent
+
+	args:
+						buf			the buffer to print to
+						fmt			the format string
+						...			aditianal args that match the format string
+	
+ returns:
+						the number of chars printed to the buffer, not includeing the \0
+*******************************************************************************/
+
+int buffer_printf_noindent(
+	buffer *buf,
+	char *format,
 	...);
 
 /*******************************************************************************
