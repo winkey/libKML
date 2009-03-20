@@ -209,7 +209,8 @@ libKML_la_SOURCES = \
 	error.h
 
 libKML_la_LDFLAGS = \
-	-lzip
+	-lzip        \
+	-lDataStruct
 
 includes_HEADERS = \
 	libKML.h
