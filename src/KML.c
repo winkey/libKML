@@ -30,6 +30,8 @@
 #include "buffer.h"
 #include "zipbuffer.h"
 #include "error.h"
+#include "DLList.h"
+
 
 /*******************************************************************************
  kml info storage struct
@@ -41,35 +43,63 @@
 *******************************************************************************/
 
 typedef struct {
-	char *kmlfile;
-	char *kmzfile;
+	char kmlfile[800];
 	buffer buf;
 } KML;
 
+typedef struct {
+	char *kmzfile;
+	DLList kmls;
+} KMZ;
+
 #include "libKML.h"
+
+/*******************************************************************************
+ function to create a new kmz
+ 
+ args:
+								kmzfile			the full path of the kmz file
+ 
+ returns:				pointer to the KMZ struct
+*******************************************************************************/
+
+KMZ *KMZ_new(
+	char *kmzfile)
+{
+	KMZ *result = NULL;
+	
+	if (!(result = calloc(sizeof(KMZ), 1)))
+		ERROR("KMZ_new");
+	
+	result->kmzfile = kmzfile;
+	
+	return result;
+}
 
 
 /*******************************************************************************
  function to create a new kml
  
  args:
+								kmz					pointer to the kmz to add it to
 								kmlfile			the full path of the kml file
-								kmzfile			the full path of the kmz file
  
  returns:				pointer to the KML struct
 *******************************************************************************/
 
 KML *KML_new(
-	char *kmlfile,
-	char *kmzfile)
+	KMZ *kmz,
+	char *kmlfile)
 {
 	KML *result = NULL;
 	
 	if (!(result = calloc(sizeof(KML), 1)))
 		ERROR("KML_new");
 	
-	result->kmlfile = kmlfile;
-	result->kmzfile = kmzfile;
+	strncpy(result->kmlfile, kmlfile, sizeof(result->kmlfile));
+	
+	if (kmz)
+		DLList_append(&kmz->kmls, result);
 	
 	return result;	
 }
@@ -95,6 +125,84 @@ void KML_free(
 }
 
 /*******************************************************************************
+	dllist iterate function to free a kmz
+*******************************************************************************/
+
+void *kmz_free_iterate(
+	DLList *list,
+	DLList_node *node,
+	void *data,
+	void *extra)
+{
+	KML *kml = data;
+	
+	KML_free (kml);
+	
+	return NULL;
+}
+
+/*******************************************************************************
+ function to free a kmz struct
+ 
+ args:
+								kmz				pointer to the kmz struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KMZ_free(
+	KMZ *kmz)
+{
+	
+	DLList_iterate(&kmz->kmls, kmz_free_iterate, NULL);
+	
+	free(kmz);
+	
+	return;
+}
+/*******************************************************************************
+	dllist iterate function to write a kmz
+*******************************************************************************/
+
+void *kmz_write_iterate(
+	DLList *list,
+	DLList_node *node,
+	void *data,
+	void *extra)
+{
+	KML *kml = data;
+	struct zip *za = extra;
+	zipbuffer_add(kml->kmlfile, za, &(kml->buf));
+	
+	return NULL;
+}
+
+/*******************************************************************************
+ function to write a kmz to disk
+ 
+ args:
+								kmz				pointer to the kmz struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KMZ_write(
+	KMZ *kmz)
+{
+	struct zip *za;
+	
+	za = zipbuffer_open(kmz->kmzfile);
+	
+	DLList_iterate(&kmz->kmls, kmz_write_iterate, za);
+	
+	zipbuffer_close(za);
+	
+	return;
+}
+
+/*******************************************************************************
  function to write a kml to disk
  
  args:
@@ -107,22 +215,14 @@ void KML_free(
 void KML_write(
 	KML *kml)
 {
-	if (kml->kmzfile) {
-		struct zip *za;
+	
+	FILE *fp;
+	
+	if (!(fp = fopen(kml->kmlfile, "w")))
+		ERROR("KML_write");
 		
-		za = zipbuffer_open(kml->kmzfile);
-		zipbuffer_add(kml->kmlfile, za, &(kml->buf));
-		zipbuffer_close(za);
-	}
-	else {
-		FILE *fp;
-		
-		if (!(fp = fopen(kml->kmlfile, "w")))
-			ERROR("KML_write");
-		
-		fputs(kml->buf.buf, fp);
-		fclose(fp);
-	}
+	fputs(kml->buf.buf, fp);
+	fclose(fp);
 	
 	return;
 }
@@ -145,7 +245,7 @@ void KML_header (
 	buffer_printf(buf, "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n");
 	buffer_printf(buf, "<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n");
 	buffer_printf(buf, "<Document>\n");
-
+	buf->indent++;
  return;
 }
 
@@ -163,9 +263,51 @@ void KML_footer (
 	KML *kml)
 {
 	buffer *buf = &(kml->buf);
-	
+	buf->indent--;
 	buffer_printf(buf, "</Document>\n");
 	buffer_printf(buf, "</kml>\n");
+	
+	return;
+}
+
+/*****************************************************************************//**
+ function to add a name to a kml
+
+ @param kml				pointer to the kml struct
+ @param name			the name of the item
+
+ @return	nothing
+*******************************************************************************/
+
+void KML_name(
+	KML *kml,
+	char *name)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "  <name>%s</name>\n", name);
+	
+	return;
+}
+
+/*****************************************************************************//**
+ function to add a description to a kml
+
+ @param kml				pointer to the kml struct
+ @param desc			the description of the item
+
+ @return	nothing
+*******************************************************************************/
+
+void KML_desc(
+	KML *kml,
+	char *desc)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<description>");
+		buffer_printf(buf, "%s", desc);
+	buffer_printf(buf, "</description>\n");
 	
 	return;
 }
@@ -191,15 +333,19 @@ void KML_placemark_header (
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "  <Placemark>\n");
+	buffer_printf(buf, "<Placemark>\n");
 	if (name)
-		buffer_printf(buf, "    <name>%s</name>\n", name);
+		buffer_printf(buf, "  <name>%s</name>\n", name);
 	if (desc) {
-		buffer_printf(buf, "    <description>");
+		buffer_printf(buf, "  <description>");
 		buffer_printf(buf, "%s", desc);
-		buffer_printf(buf, "    </description>\n");
+		buffer_printf(buf, "  </description>\n");
 	}
-	buffer_printf(buf, "    <styleUrl>#%s</styleUrl>\n", styleid);
+	if (styleid)
+		buffer_printf(buf, "  <styleUrl>#%s</styleUrl>\n", styleid);
+	
+	buf->indent++;
+	
 	return;
 }
 
@@ -218,8 +364,54 @@ void KML_placemark_footer (
 {
 	buffer *buf = &(kml->buf);
 	
-  buffer_printf(buf, "  </Placemark>\n");
+	buf->indent--;
+  buffer_printf(buf, "</Placemark>\n");
 	
+	return;
+}
+
+/*******************************************************************************
+ function to add a icon header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_icon_header (
+		KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<Point>\n");
+
+	buffer_printf(buf, "  <coordinates>");
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a icon footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_icon_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf_noindent(buf, "</coordinates>\n");
+	buffer_printf(buf, "</Point>\n");
+
 	return;
 }
 
@@ -238,16 +430,34 @@ void KML_placemark_footer (
 void KML_linestring_header (
 	KML *kml,
 	int extrude,
-	int tessellate)
+	int tessellate,
+	int altitudeMode)
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "    <LineString>\n");
+	buffer_printf(buf, "<LineString>\n");
 	if (extrude)
-		buffer_printf(buf, "      <extrude>1</extrude>\n");
+		buffer_printf(buf, "  <extrude>1</extrude>\n");
 	if (tessellate)		
-		buffer_printf(buf, "      <tessellate>1</tessellate>\n");
-	buffer_printf(buf, "      <coordinates>");
+		buffer_printf(buf, "  <tessellate>1</tessellate>\n");
+	
+	switch (altitudeMode) {
+	
+		case relativeToGround:
+			buffer_printf(buf, "  <altitudeMode>relativeToGround</altitudeMode>\n");
+			break;
+		
+		case absolute:
+			buffer_printf(buf, "  <altitudeMode>absolute</altitudeMode>\n");
+			break;
+		
+		case clampToGround:
+		default:
+			break;
+	}
+	
+	buffer_printf(buf, "  <coordinates>");
+	buf->indent++;
 
 	return;
 }
@@ -267,9 +477,9 @@ void KML_linestring_footer (
 {
 	buffer *buf = &(kml->buf);
 	
-	
-	buffer_printf(buf, "</coordinates>\n");
-	buffer_printf(buf, "    </LineString>\n");
+	buf->indent--;
+	buffer_printf_noindent(buf, "</coordinates>\n");
+	buffer_printf(buf, "</LineString>\n");
 
 	return;
 }
@@ -289,19 +499,34 @@ void KML_linestring_footer (
 void KML_polygon_header (
 	KML *kml,
 	int extrude,
-	int tessellate)
+	int tessellate,
+	int altitudeMode)
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "    <Polygon>\n");
+	buffer_printf(buf, "<Polygon>\n");
 		if (extrude)
-		buffer_printf(buf, "      <extrude>1</extrude>\n");
+		buffer_printf(buf, "  <extrude>1</extrude>\n");
 	if (tessellate)		
-		buffer_printf(buf, "      <tessellate>1</tessellate>\n");
-	buffer_printf(buf, "      <outerBoundaryIs>\n");
-	buffer_printf(buf, "        <LinearRing>\n");
-	buffer_printf(buf, "          <coordinates>");
+		buffer_printf(buf, "  <tessellate>1</tessellate>\n");
 
+	
+	switch (altitudeMode) {
+	
+		case relativeToGround:
+			buffer_printf(buf, "  <altitudeMode>relativeToGround</altitudeMode>\n");
+			break;
+		
+		case absolute:
+			buffer_printf(buf, "  <altitudeMode>absolute</altitudeMode>\n");
+			break;
+		
+		case clampToGround:
+		default:
+			break;
+	}
+	buf->indent++;
+	
 	return;
 }
 
@@ -320,12 +545,164 @@ void KML_polygon_footer (
 {
 	buffer *buf = &(kml->buf);
 	
+	buf->indent--;
+	buffer_printf(buf, "</Polygon>\n");
 	
-	buffer_printf(buf, "</coordinates>\n");
-	buffer_printf(buf, "        </LinearRing>\n");
-	buffer_printf(buf, "      </outerBoundaryIs>\n");
-	buffer_printf(buf, "    </Polygon>\n");
+	return;
+}
+
+/*******************************************************************************
+ function to add a outerBoundaryIs header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								extrude			extruded? 0/1
+								tessellate	tessellate? 0/1
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_outerboundry_header (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
 	
+	buffer_printf(buf, "<outerBoundaryIs>\n");
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a outerBoundaryIs footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_outerboundry_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf(buf, "</outerBoundaryIs>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a innerBoundaryIs header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_innerboundry_header (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<innerBoundaryIs>\n");
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a innerBoundaryIs footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_innerboundry_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf(buf, "</innerBoundaryIs>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a linearring header to a kml
+ 
+ args:
+								kml					pointer to the kml struct
+								extrude			extruded? 0/1
+								tessellate	tessellate? 0/1
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_linearring_header (
+	KML *kml,
+	int extrude,
+	int tessellate,
+	int altitudeMode)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<LinearRing>\n");;
+	if (extrude)
+		buffer_printf(buf, "  <extrude>1</extrude>\n");
+	if (tessellate)		
+		buffer_printf(buf, "  <tessellate>1</tessellate>\n");
+	
+	switch (altitudeMode) {
+	
+		case relativeToGround:
+			buffer_printf(buf, "  <altitudeMode>relativeToGround</altitudeMode>\n");
+			break;
+		
+		case absolute:
+			buffer_printf(buf, "  <altitudeMode>absolute</altitudeMode>\n");
+			break;
+		
+		case clampToGround:
+		default:
+			break;
+	}
+	
+	buffer_printf(buf, "  <coordinates>");
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a linearring footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_linearring_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf_noindent(buf, "</coordinates>\n");
+	buffer_printf(buf, "</LinearRing>\n");
+
 	return;
 }
 
@@ -355,24 +732,66 @@ void KML_coordinates (
 	
 	if (!z) {
 		snprintf(fmt, sizeof(fmt), "%%.%ilg,%%.%ilg ", precision, precision);
-		buffer_printf(buf, fmt, *x, *y);
+		buffer_printf_noindent(buf, fmt, *x, *y);
 	}
 	else {
 		snprintf(fmt, sizeof(fmt), "%%.%ilg,%%.%ilg,%%.%ilg ",
 						 precision, precision, precision);
-		buffer_printf(buf, fmt, *x, *y, *z);
+		buffer_printf_noindent(buf, fmt, *x, *y, *z);
 	}
 	
 	return;
 }
 	
+/*******************************************************************************
+ function to add a style header to a kml
+ 
+ args:
+								kml					pointer to the kml struct
+								id					the style id
+
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_style_header (
+	KML *kml,
+	char *id)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<Style id=\"%s\">\n", id);
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a style footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_style_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf(buf, "</Style>\n");
+	
+	return;
+}
 
 /*******************************************************************************
  function to add a linestyle to a kml
  
  args:
 								kml				pointer to the kml struct
-								id				the style id
 								rgb				rgb value for the style
 								alpha			the alpha value for the style
 								width			the line width
@@ -383,20 +802,17 @@ void KML_coordinates (
 
 void KML_linestyle (
 	KML *kml,
-	char *id,
 	char *rgb,
 	char *alpha,
 	int width)
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "    <Style id=\"%s\">\n", id);
-	buffer_printf(buf, "  	  <LineStyle>\n");
-	buffer_printf(buf, "        <color>%s%c%c%c%c%c%c</color>\n", alpha,
+	buffer_printf(buf, "<LineStyle>\n");
+	buffer_printf(buf, "  <color>%s%c%c%c%c%c%c</color>\n", alpha,
 								rgb[4], rgb[5], rgb[2], rgb[3], rgb[0], rgb[1]);
-	buffer_printf(buf, "        <width>%i</width>\n", width);
-	buffer_printf(buf, "      </LineStyle>\n");
-	buffer_printf(buf, "    </Style>\n");
+	buffer_printf(buf, "  <width>%i</width>\n", width);
+	buffer_printf(buf, "</LineStyle>\n");
 	
 	return;
 }
@@ -405,13 +821,9 @@ void KML_linestyle (
  function to add a polystyle to a kml
  
  args:
-								kml					pointer to the kml struct
-								id					the style id
-								linergb			rgb value for the line style
-								linealpha		the alpha value for the line style
-								width				the line width
-								polyrgb			rgb value for the fill style
-								polyalpha		the alpha value for the fill style
+								kml			pointer to the kml struct
+								rgb			rgb value for the fill style
+								alpha		the alpha value for the fill style
  
  returns:
 								nothing
@@ -419,29 +831,340 @@ void KML_linestyle (
 
 void KML_polystyle (
 	KML *kml,
-	char *id,
-	char *linergb,
-	char *linealpha,
-	int width,
-	char *polyrgb,
-	char *polyalpha)
+	char *rgb,
+	char *alpha)
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "    <Style id=\"%s\">\n", id);
-	buffer_printf(buf, "  	  <LineStyle>\n");
-	buffer_printf(buf, "        <color>%s%c%c%c%c%c%c</color>\n", linealpha,
-								linergb[4], linergb[5], linergb[2],
-								linergb[3], linergb[0], linergb[1]);
-	buffer_printf(buf, "        <width>%i</width>\n", width);
-	buffer_printf(buf, "      </LineStyle>\n");
-	buffer_printf(buf, "  	  <PolyStyle>\n");
-	buffer_printf(buf, "        <color>%s%c%c%c%c%c%c</color>\n", polyalpha,
-								polyrgb[4], polyrgb[5], polyrgb[2],
-								polyrgb[3], polyrgb[0], polyrgb[1]);
-	buffer_printf(buf, "      </LineStyle>\n");
-	buffer_printf(buf, "    </Style>\n");
+	buffer_printf(buf, "<PolyStyle>\n");
+	buffer_printf(buf, "  <color>%s%c%c%c%c%c%c</color>\n", alpha,
+								rgb[4], rgb[5], rgb[2],
+								rgb[3], rgb[0], rgb[1]);
+	buffer_printf(buf, "</PolyStyle>\n");
 	
 	return;
 }
 
+/*******************************************************************************
+ function to add a iconstyle to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								rgb				rgb value for the style
+								alpha			the alpha value for the style
+								scale			scale value for the style
+								heading		deg to rotate the icon
+								icon 			url of the icon to use or NULL
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_iconstyle (
+	KML *kml,
+	char *rgb,
+	char *alpha,
+	float scale,
+	float heading,
+	char *icon)
+{
+	
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<IconStyle>\n");
+	buffer_printf(buf, "  <color>%s%c%c%c%c%c%c</color>\n", alpha,
+								rgb[4], rgb[5], rgb[2],
+								rgb[3], rgb[0], rgb[1]);
+	
+	if (scale != 1.0)
+		buffer_printf(buf, "  <scale>%f</scale>\n", scale);
+	
+	buffer_printf(buf, "  <heading>%f</heading>\n", heading);
+	
+	if (icon) {
+		buffer_printf(buf, "  <Icon>\n");
+		buffer_printf(buf, "    <href>%s</href>\n", icon);
+		buffer_printf(buf, "  </Icon>\n");
+	}
+	
+	buffer_printf(buf, "</IconStyle>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a networklink to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+								url				url to link to 
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_networklink (
+	KML *kml,
+	char *url)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<NetworkLink>\n");
+	buffer_printf(buf, "  <Link>\n");
+	buffer_printf(buf, "    <href>%s</href>\n", url);
+	buffer_printf(buf, "  </Link>\n");
+	buffer_printf(buf, "</NetworkLink>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a TimeStamp header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_timestamp_header (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<TimeStamp>\n");
+	buf->indent++;
+	buffer_printf(buf, "<when>\n");
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a TimeStamp footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_timestamp_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf(buf, "</when>\n");
+	buf->indent--;
+	buffer_printf(buf, "</TimeStamp>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a TimeSpan header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_timespan_header (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<TimeSpan>\n");
+	buf->indent++;
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a TimeSpan footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_timespan_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buf->indent--;
+	buffer_printf(buf, "</TimeSpan>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a begin header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_begin_header (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<begin>");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a begin footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_begin_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf_noindent(buf, "</begin>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a end header to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_end_header (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<end>");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a end footer to a kml
+ 
+ args:
+								kml				pointer to the kml struct
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_end_footer (
+	KML *kml)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf_noindent(buf, "</end>\n");
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a time to a kml
+ 
+  args:
+								kml				pointer to the kml struct
+								year
+								month
+								day
+								hour
+								min
+								sec
+ 
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_time (
+	KML *kml,
+	int *year,
+	int *month,
+	int *day,
+	int *hour,
+	int *min,
+	int *sec)
+{
+	buffer *buf = &(kml->buf);
+	
+	if (year)
+		buffer_printf_noindent(buf, "%i", *year);
+	else
+		goto end;
+	
+	if (month)
+		buffer_printf_noindent(buf, "-%02i", *month);
+	else
+		goto end;
+
+	if (day)
+		buffer_printf_noindent(buf, "-%02i", *day);
+	else
+		goto end;
+	
+	if (hour)
+		buffer_printf_noindent(buf, "T%02i", *hour);
+	else
+		goto end;
+	
+	if (min)
+		buffer_printf_noindent(buf, ":%02i", *min);
+	else
+		goto end;
+	
+	if (sec)
+		buffer_printf_noindent(buf, ":%02iZ", *sec);
+	else
+		goto end;
+	
+end:
+	
+	
+	return;
+}
+
+/*******************************************************************************
+ function to add a style url to a kml
+ 
+ @param kml				pointer to the kml struct
+ @param styleid		the style id for the placemark
+ 
+ @return	nothing
+*******************************************************************************/
+
+void KML_style_url (
+	KML *kml,
+	char *styleid)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf(buf, "<styleUrl>#%s</styleUrl>\n", styleid);
+	
+	return;
+}

@@ -23,6 +23,8 @@
 #include "buffer.h"
 #include "error.h"
 
+#define INDENTSPACES 2
+
 /*******************************************************************************
 	function to allocate memory for a buffer
 *******************************************************************************/
@@ -80,7 +82,54 @@ int buffer_printf(
 	va_list ap;
 	int result = 0;
 	int need = 0;
+	
+	need = 1 + buf->indent * INDENTSPACES;
+	if (buf->alloced < buf->used + need )
+		buffer_alloc(buf, need);
+	
+	int i;
+	for (i = 0 ; i < buf->indent * INDENTSPACES ; i++) {
+		*(buf->buf + buf->used) = ' ';
+		buf->used++;
+	}
+	*(buf->buf + buf->used) = '\0';
 
+	va_start (ap, format);
+	need = 1 + vsnprintf (NULL, 0, format, ap);
+	if (buf->alloced < buf->used + need)
+		buffer_alloc(buf, need);
+	va_end (ap);
+	
+	va_start (ap, format);
+	result = vsprintf (buf->buf + buf->used, format, ap);
+	buf->used += result;
+	va_end (ap);
+
+	return result;
+}
+
+/*******************************************************************************
+	function to print to a buffer with no indent
+
+	args:
+						buf			the buffer to print to
+						fmt			the format string
+						...			aditianal args that match the format string
+	
+ returns:
+						the number of chars printed to the buffer, not includeing the \0
+*******************************************************************************/
+
+int buffer_printf_noindent(
+	buffer *buf,
+	char *format,
+	...)
+{
+
+	va_list ap;
+	int result = 0;
+	int need = 0;
+	
 	va_start (ap, format);
 	need = 1 + vsnprintf (NULL, 0, format, ap);
 	if (buf->alloced < buf->used + need)
