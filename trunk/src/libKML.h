@@ -348,7 +348,7 @@ void KML_coordinates (
  function to add a style header to a kml
  
  @param kml					pointer to the kml struct
- @param id					the style id
+ @param id					the style id or NULL for none
 
  @return	nothing
 *******************************************************************************/
@@ -406,8 +406,10 @@ void KML_polystyle (
  @param kml				pointer to the kml struct
  @param rgb				rgb value for the style
  @param alpha			the alpha value for the style
- @param scale			scale value for the style
- @param heading		deg to rotate the icon
+ @param scale			scale value for the style or 1
+ @param heading		deg to rotate the icon clockwise or 0
+ @param dx				hotspox x fraction or 0.5
+ @param dy				hotspox y fraction or 0.5
  @param icon 			url of the icon to use or NULL
 
  @return	nothing
@@ -419,6 +421,8 @@ void KML_iconstyle (
 	char *alpha,
 	float scale,
 	float heading,
+	float dx,
+	float dy,
 	char *icon);
 
 /*****************************************************************************//**

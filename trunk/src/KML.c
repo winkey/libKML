@@ -155,7 +155,7 @@ void KMZ_free(
 	KMZ *kmz)
 {
 	
-	DLList_iterate(&kmz->kmls, kmz_free_iterate, NULL);
+	DLList_delete_all(&kmz->kmls, (DLList_data_free_func) KML_free);
 	
 	free(kmz);
 	
@@ -760,7 +760,10 @@ void KML_style_header (
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "<Style id=\"%s\">\n", id);
+	if (id)
+		buffer_printf(buf, "<Style id=\"%s\">\n", id);
+	else
+		buffer_printf(buf, "<Style>\n", id);
 	buf->indent++;
 	
 	return;
@@ -809,7 +812,7 @@ void KML_linestyle (
 	buffer *buf = &(kml->buf);
 	
 	buffer_printf(buf, "<LineStyle>\n");
-	buffer_printf(buf, "  <color>%s%c%c%c%c%c%c</color>\n", alpha,
+	buffer_printf(buf, "  <color>%c%c%c%c%c%c%c%c</color>\n", alpha[0], alpha[1],
 								rgb[4], rgb[5], rgb[2], rgb[3], rgb[0], rgb[1]);
 	buffer_printf(buf, "  <width>%i</width>\n", width);
 	buffer_printf(buf, "</LineStyle>\n");
@@ -837,7 +840,7 @@ void KML_polystyle (
 	buffer *buf = &(kml->buf);
 	
 	buffer_printf(buf, "<PolyStyle>\n");
-	buffer_printf(buf, "  <color>%s%c%c%c%c%c%c</color>\n", alpha,
+	buffer_printf(buf, "  <color>%c%c%c%c%c%c%c%c</color>\n", alpha[0], alpha[1],
 								rgb[4], rgb[5], rgb[2],
 								rgb[3], rgb[0], rgb[1]);
 	buffer_printf(buf, "</PolyStyle>\n");
@@ -852,8 +855,10 @@ void KML_polystyle (
 								kml				pointer to the kml struct
 								rgb				rgb value for the style
 								alpha			the alpha value for the style
-								scale			scale value for the style
-								heading		deg to rotate the icon
+								scale			scale value for the style or 1
+								heading		deg to rotate the icon or 0
+								dx				hotspox x fraction or 0.5
+								dy				hotspox y fraction or 0.5
 								icon 			url of the icon to use or NULL
  
  returns:
@@ -866,20 +871,27 @@ void KML_iconstyle (
 	char *alpha,
 	float scale,
 	float heading,
+	float dx,
+	float dy,
 	char *icon)
 {
 	
 	buffer *buf = &(kml->buf);
 	
 	buffer_printf(buf, "<IconStyle>\n");
-	buffer_printf(buf, "  <color>%s%c%c%c%c%c%c</color>\n", alpha,
+	buffer_printf(buf, "  <color>%c%c%c%c%c%c%c%c</color>\n", alpha[0], alpha[1],
 								rgb[4], rgb[5], rgb[2],
 								rgb[3], rgb[0], rgb[1]);
 	
 	if (scale != 1.0)
 		buffer_printf(buf, "  <scale>%f</scale>\n", scale);
 	
-	buffer_printf(buf, "  <heading>%f</heading>\n", heading);
+	if (heading != 0)
+		buffer_printf(buf, "  <heading>%f</heading>\n", heading);
+	
+	if (dx != 0.5 || dy != 0.5)
+		buffer_printf(buf, "  <hotSpot x=\"%f\" y=\"%f\" xunits=\"%s\" yunits=\"%s\"/>\n",
+									dx, dy, "fraction", "fraction");
 	
 	if (icon) {
 		buffer_printf(buf, "  <Icon>\n");
