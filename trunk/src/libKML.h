@@ -526,14 +526,16 @@ void KML_end_footer (
  function to add a time to a kml
  
  @param kml				pointer to the kml struct
- @param year
- @param month
- @param day
- @param hour
- @param min
- @param sec
+ @param year			pointer to the year 2001
+ @param month     pointer to the month 1-12
+ @param day				pointer to the day 1-31
+ @param hour			pointer to the hour 0-23
+ @param min				pointer to the min 0-59
+ @param sec       pointer to the sec 0-59
  
  @return	nothing
+
+note: the first null param causes that param and all folowing to be skipped
 *******************************************************************************/
 
 void KML_time (
@@ -545,12 +547,11 @@ void KML_time (
 	int *min,
 	int *sec);
 
-#endif /* _LIBKML_H */
-
-/*****************************************************************************//**
+/*******************************************************************************
  function to add a style url to a kml
  
  @param kml				pointer to the kml struct
+ @param styleurl	the style url for the placemark or NULL for none
  @param styleid		the style id for the placemark
  
  @return	nothing
@@ -558,4 +559,9 @@ void KML_time (
 
 void KML_style_url (
 	KML *kml,
+	char *styleurl,
 	char *styleid);
+
+#endif /* _LIBKML_H */
+
+

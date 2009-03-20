@@ -1091,8 +1091,8 @@ void KML_end_footer (
  
   args:
 								kml				pointer to the kml struct
-								year
-								month
+								year			pointer to the year eg 2001
+								month			pointer to the mo
 								day
 								hour
 								min
@@ -1153,6 +1153,7 @@ end:
  function to add a style url to a kml
  
  @param kml				pointer to the kml struct
+ @param styleurl	the style url for the placemark or NULL for none
  @param styleid		the style id for the placemark
  
  @return	nothing
@@ -1160,11 +1161,15 @@ end:
 
 void KML_style_url (
 	KML *kml,
+	char *styleurl,
 	char *styleid)
 {
 	buffer *buf = &(kml->buf);
 	
-	buffer_printf(buf, "<styleUrl>#%s</styleUrl>\n", styleid);
+	if (styleurl)
+		buffer_printf(buf, "<styleUrl>%s#%s</styleUrl>\n", styleurl, styleid);
+	else
+		buffer_printf(buf, "<styleUrl>#%s</styleUrl>\n", styleid);
 	
 	return;
 }
