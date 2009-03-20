@@ -437,10 +437,9 @@ void KML_networklink (
 /*****************************************************************************//**
  function to add a TimeStamp header to a kml
  
- @param pointer to the kml struct
+ @param kml	pointer to the kml struct
  
- returns:
-								nothing
+ @return	nothing
 *******************************************************************************/
 
 void KML_timestamp_header (
