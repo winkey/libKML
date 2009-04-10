@@ -1,5 +1,8 @@
-## Process this file with automake to produce Makefile.in
-## Created by Anjuta
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libKML.pc
+
+INCLUDES = $(DEPS_CFLAGS)
+LIBS = $(DEPS_LIBS)
 
 SUBDIRS = src 
 
