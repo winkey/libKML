@@ -52,12 +52,10 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includesdir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libKML_la_LIBADD =
+am__DEPENDENCIES_1 =
+libKML_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libKML_la_OBJECTS = KML.lo buffer.lo zipbuffer.lo
 libKML_la_OBJECTS = $(am_libKML_la_OBJECTS)
-libKML_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(libKML_la_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -96,6 +94,8 @@ CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DEPS_CFLAGS = @DEPS_CFLAGS@
+DEPS_LIBS = @DEPS_LIBS@
 DSYMUTIL = @DSYMUTIL@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
@@ -129,6 +129,7 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -187,6 +188,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+INCLUDES = $(DEPS_CFLAGS)
+libKML_la_LIBADD = $(DEPS_LIBS)
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
 	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
@@ -207,10 +210,6 @@ libKML_la_SOURCES = \
 	zipbuffer.c      \
 	zipbuffer.h      \
 	error.h
-
-libKML_la_LDFLAGS = \
-	-lzip        \
-	-lDataStruct
 
 includes_HEADERS = \
 	libKML.h
@@ -282,7 +281,7 @@ clean-libLTLIBRARIES:
 	  rm -f "$${dir}/so_locations"; \
 	done
 libKML.la: $(libKML_la_OBJECTS) $(libKML_la_DEPENDENCIES) 
-	$(libKML_la_LINK) -rpath $(libdir) $(libKML_la_OBJECTS) $(libKML_la_LIBADD) $(LIBS)
+	$(LINK) -rpath $(libdir) $(libKML_la_OBJECTS) $(libKML_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

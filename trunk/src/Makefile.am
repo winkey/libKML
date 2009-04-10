@@ -1,6 +1,6 @@
-## Process this file with automake to produce Makefile.in
 
-## Created by Anjuta
+INCLUDES = $(DEPS_CFLAGS)
+libKML_la_LIBADD = $(DEPS_LIBS)
 
 AM_CPPFLAGS = \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
@@ -23,9 +23,7 @@ libKML_la_SOURCES = \
 	zipbuffer.h      \
 	error.h
 
-libKML_la_LDFLAGS = \
-	-lzip        \
-	-lDataStruct
+
 
 includes_HEADERS = \
 	libKML.h

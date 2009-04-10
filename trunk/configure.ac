@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Created by Anjuta application wizard.
 
-AC_INIT(libkml, 0.6)
+AC_INIT(libKML, 0.6)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 AM_CONFIG_HEADER(config.h)
@@ -13,22 +13,17 @@ AM_PROG_CC_STDC
 AC_HEADER_STDC
 
 
-AC_CHECK_LIB(zip, zip_source_free, HAVE_LIBZIP=true, HAVE_LIBZIP=false)
-if test $HAVE_LIBZIP = "false"; then
-  AC_MSG_FAILURE([libzip not found])
-fi
-
-
-
 AM_PROG_LIBTOOL
 
 
-
+PKG_CHECK_MODULES(DEPS, libDataStruct >= 0.1 libzip >= 0.9)
+AC_SUBST(DEPS_CFLAGS)
+AC_SUBST(DEPS_LIBS)
 
 
 
 AC_OUTPUT([
 Makefile
 src/Makefile
-
+libKML.pc
 ])
