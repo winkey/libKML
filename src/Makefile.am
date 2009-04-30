@@ -21,7 +21,12 @@ libKML_la_SOURCES = \
 	kml.h      \
 	zipbuffer.c      \
 	zipbuffer.h      \
-	error.h
+	error.h      \
+	../minizip/crypt.h      \
+	../minizip/ioapi.c      \
+	../minizip/ioapi.h      \
+	../minizip/zip.c      \
+	../minizip/zip.h
 
 
 

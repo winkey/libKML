@@ -4,7 +4,8 @@ pkgconfig_DATA = libKML.pc
 INCLUDES = $(DEPS_CFLAGS)
 LIBS = $(DEPS_LIBS)
 
-SUBDIRS = src 
+SUBDIRS = src \
+	minizip
 
 libkmldocdir = ${prefix}/doc/libkml
 libkmldoc_DATA = \

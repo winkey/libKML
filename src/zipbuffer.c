@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zip.h>
+#include "../minizip/zip.h"
 
 #include "buffer.h"
 #include "zipbuffer.h"
@@ -44,13 +44,14 @@
 						exit()s on error
 *******************************************************************************/
 
-struct zip *zipbuffer_open (
+zipFile *zipbuffer_open (
 	char *name)
 {
-	struct zip *result = NULL;
-	int err;
-	
-	if (!(result = zip_open(name, ZIP_CREATE, &err))) {
+	//struct zip *result = NULL;
+	zipFile *result = NULL;
+
+	if (!(result = zipOpen(name, APPEND_STATUS_CREATE))) {
+	//if (!(result = zip_open(name, ZIP_CREATE, &err))) {
 		ERROR("zipbuffer_open");
 	}
 	
@@ -71,19 +72,24 @@ struct zip *zipbuffer_open (
 
 void zipbuffer_add (
 	char *name,
-	struct zip *za,
+	zipFile zF,
 	buffer *buf)
 {
-	struct zip_source *src;
+#warning fixme i need info
+	zip_fileinfo zipfi;
+	if (zipOpenNewFileInZip(zF, name, &zipfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED,
+													 Z_DEFAULT_COMPRESSION))
+		ERROR("zipbuffer_add");
 	
-	if (!(src=zip_source_buffer(za, buf->buf, buf->used, 0)))
-		ERROR(zip_strerror(za));
-		
-	if (zip_add(za, name, src) == -1) {
-		zip_source_free(src);
-		ERROR(zip_strerror(za));
+	
+	if (ZEXPORT zipWriteInFileInZip(zF, buf->buf, buf->used)) {
+		ERROR("zipbuffer_add");
 	}
-
+	
+	if (zipCloseFileInZip(zF)) {
+		ERROR("zipbuffer_add");
+	}
+	
 	return;
 }
 
@@ -98,11 +104,11 @@ void zipbuffer_add (
 *******************************************************************************/
 
 void zipbuffer_close (
-	struct zip *za)
+	zipFile zF)
 {
-		
-	if (0 > zip_close(za))
-		ERROR("zipbuffer_close");
+	
+	if (zipClose (zF, "created by libKML"))
+  	ERROR("zipbuffer_close");
 	
 	return;
 }

@@ -46,13 +46,15 @@ KMZ *KMZ_new(
  
  @param kmz					pointer to the kmz to add it to
  @param kmlfile			the full path of the kml file
- 
+ @param printprec		the precision to print coordantes at
+
  @return	pointer to the KML struct
 *******************************************************************************/
 
 KML *KML_new(
 	KMZ *kmz,
-	char *kmlfile);
+	char *kmlfile,
+	int printprec);
 
 /*****************************************************************************//**
  function to free a kml struct
@@ -326,10 +328,9 @@ void KML_linearring_footer (
 	KML *kml);
 
 /*****************************************************************************//**
- function to add coordinates of a point to a kml
+ function to add coordinates of a 3d point to a kml
  
  @param kml					pointer to the kml struct
- @param precision		number of places to the right of the point to print
  @param x						x coord of the point
  @param y						y coord of the point
  @param z						z coord of the point NULL if 2d
@@ -337,12 +338,26 @@ void KML_linearring_footer (
  @return	nothing
 *******************************************************************************/
 
-void KML_coordinates (
+void KML_coordinates_3d (
 	KML *kml,
-	int precision,												
 	double *x,
 	double *y,
 	double *z);
+
+/*****************************************************************************//**
+ function to add coordinates of a 2d point to a kml
+ 
+ @param kml					pointer to the kml struct
+ @param x						x coord of the point
+ @param y						y coord of the point
+ 
+ @return	nothing
+*******************************************************************************/
+
+void KML_coordinates_2d (
+	KML *kml,
+	double *x,
+	double *y);
 
 /*****************************************************************************//**
  function to add a style header to a kml
