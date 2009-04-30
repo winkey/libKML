@@ -28,7 +28,7 @@
 						exit()s on error
 *******************************************************************************/
 
-struct zip *zipbuffer_open (
+zipFile *zipbuffer_open (
 	char *name);
 
 /*******************************************************************************
@@ -45,7 +45,7 @@ struct zip *zipbuffer_open (
 
 void zipbuffer_add (
 	char *name,
-	struct zip *za,
+	zipFile zF,
 	buffer *buf);
 
 
@@ -60,7 +60,7 @@ void zipbuffer_add (
 *******************************************************************************/
 
 void zipbuffer_close (
-	struct zip *za);
+	zipFile zF);
 
 
 #endif /* _ZIPBUFFER_H */

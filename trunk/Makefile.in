@@ -199,7 +199,9 @@ top_srcdir = @top_srcdir@
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libKML.pc
 INCLUDES = $(DEPS_CFLAGS)
-SUBDIRS = src 
+SUBDIRS = src \
+	minizip
+
 libkmldocdir = ${prefix}/doc/libkml
 libkmldoc_DATA = \
 	README\

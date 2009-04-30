@@ -1,0 +1,22 @@
+
+lib_LIBRARIES = \
+	libminizip.a
+
+libminizip_a_SOURCES = \
+	crypt.h       \
+	ioapi.c       \
+	ioapi.h       \
+	miniunz.c       \
+	minizip.c       \
+	mztools.c       \
+	mztools.h       \
+	unzip.c       \
+	unzip.h       \
+	zip.c       \
+	zip.h
+
+libminizip_a_LDFLAGS = \
+	-lz
+
+## File created by the gnome-build tools
+

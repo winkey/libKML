@@ -26,7 +26,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <zip.h>
+#include "../minizip/zip.h"
+#include <time.h>
 #include "buffer.h"
 #include "zipbuffer.h"
 #include "error.h"
@@ -45,6 +46,8 @@
 typedef struct {
 	char kmlfile[800];
 	buffer buf;
+	char fmt2d[100];
+	char fmt3d[100];
 } KML;
 
 typedef struct {
@@ -83,13 +86,15 @@ KMZ *KMZ_new(
  args:
 								kmz					pointer to the kmz to add it to
 								kmlfile			the full path of the kml file
+								printprec		the precision to print coordantes at
  
  returns:				pointer to the KML struct
 *******************************************************************************/
 
 KML *KML_new(
 	KMZ *kmz,
-	char *kmlfile)
+	char *kmlfile,
+	int printprec)
 {
 	KML *result = NULL;
 	
@@ -97,6 +102,11 @@ KML *KML_new(
 		ERROR("KML_new");
 	
 	strncpy(result->kmlfile, kmlfile, sizeof(result->kmlfile));
+	
+	snprintf(result->fmt2d, sizeof(result->fmt2d), "%%.%ilg,%%.%ilg ",
+					 printprec, printprec);
+	snprintf(result->fmt3d, sizeof(result->fmt3d), "%%.%ilg,%%.%ilg,%%.%ilg ",
+					 printprec, printprec, printprec);
 	
 	if (kmz)
 		DLList_append(&kmz->kmls, result);
@@ -172,8 +182,8 @@ void *kmz_write_iterate(
 	void *extra)
 {
 	KML *kml = data;
-	struct zip *za = extra;
-	zipbuffer_add(kml->kmlfile, za, &(kml->buf));
+	zipFile zf = extra;
+	zipbuffer_add(kml->kmlfile, zf, &(kml->buf));
 	
 	return NULL;
 }
@@ -191,14 +201,14 @@ void *kmz_write_iterate(
 void KMZ_write(
 	KMZ *kmz)
 {
-	struct zip *za;
 	
-	za = zipbuffer_open(kmz->kmzfile);
+	time_t start = time(NULL);
+	zipFile zf = zipbuffer_open(kmz->kmzfile);
 	
-	DLList_iterate(&kmz->kmls, kmz_write_iterate, za);
+	DLList_iterate(&kmz->kmls, kmz_write_iterate, zf);
 	
-	zipbuffer_close(za);
-	
+	zipbuffer_close(zf);
+	fprintf (stderr, "zipwrite %i\n", time(NULL) - start);
 	return;
 }
 
@@ -707,42 +717,54 @@ void KML_linearring_footer (
 }
 
 /*******************************************************************************
- function to add coordinates of a point to a kml
+ function to add coordinates of a 3d point to a kml
  
  args:
 								kml					pointer to the kml struct
-								precision		number of places to the right of the point to print
 								x						x coord of the point
 								y						y coord of the point
-								z						z coord of the point NULL if 2d
+								z						z coord of the point
 	
  returns:
 								nothing
 *******************************************************************************/
 
-void KML_coordinates (
+void KML_coordinates_3d (
 	KML *kml,
-	int precision,												
 	double *x,
 	double *y,
 	double *z)
 {
 	buffer *buf = &(kml->buf);
-	char fmt[40];
-	
-	if (!z) {
-		snprintf(fmt, sizeof(fmt), "%%.%ilg,%%.%ilg ", precision, precision);
-		buffer_printf_noindent(buf, fmt, *x, *y);
-	}
-	else {
-		snprintf(fmt, sizeof(fmt), "%%.%ilg,%%.%ilg,%%.%ilg ",
-						 precision, precision, precision);
-		buffer_printf_noindent(buf, fmt, *x, *y, *z);
-	}
+
+	buffer_printf_noindent(buf, kml->fmt3d, *x, *y, *z);
 	
 	return;
 }
+/*******************************************************************************
+ function to add coordinates of a 2d point to a kml
+ 
+ args:
+								kml					pointer to the kml struct
+								x						x coord of the point
+								y						y coord of the point
 	
+ returns:
+								nothing
+*******************************************************************************/
+
+void KML_coordinates_2d (
+	KML *kml,
+	double *x,
+	double *y)
+{
+	buffer *buf = &(kml->buf);
+	
+	buffer_printf_noindent(buf, kml->fmt2d, *x, *y);
+	
+	return;
+}
+
 /*******************************************************************************
  function to add a style header to a kml
  

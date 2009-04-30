@@ -25,6 +25,7 @@
 
 #define INDENTSPACES 2
 
+#define INITIAL 4096
 /*******************************************************************************
 	function to allocate memory for a buffer
 *******************************************************************************/
@@ -38,7 +39,7 @@ void buffer_alloc (
 	/***** if no memory alocate *****/
 
 	if (!buf->alloced) {
-		buf->alloced = need;
+		buf->alloced = INITIAL;
 		if (!(buf->buf = malloc (buf->alloced)))
 			ERROR("buffer_alloc");
 		
@@ -47,15 +48,13 @@ void buffer_alloc (
 
 	/***** if not enough memory realocate *****/
 
-	else {
-		while (buf->alloced < buf->used + need) {
+	while (buf->alloced < buf->used + need) {
 
-			buf->alloced *= 2;
-			if (!(temp = realloc (buf->buf, buf->alloced)))
-				ERROR("buffer_alloc");
+		buf->alloced *= 2;
+		if (!(temp = realloc (buf->buf, buf->alloced)))
+			ERROR("buffer_alloc");
 			
-			buf->buf = temp;
-		}
+		buf->buf = temp;
 	}
 	
 	return;
@@ -83,29 +82,61 @@ int buffer_printf(
 	int result = 0;
 	int need = 0;
 	
-	need = 1 + buf->indent * INDENTSPACES;
+	int spaces = buf->indent * INDENTSPACES;
+	need = 1 + spaces;
+	
+	/***** alocate for spaces *****/
+	
 	if (buf->alloced < buf->used + need )
 		buffer_alloc(buf, need);
 	
+	/***** add spaces *****/
+	
 	int i;
-	for (i = 0 ; i < buf->indent * INDENTSPACES ; i++) {
+	for (i = 0 ; i < spaces; i++) {
 		*(buf->buf + buf->used) = ' ';
 		buf->used++;
 	}
 	*(buf->buf + buf->used) = '\0';
 
-	va_start (ap, format);
-	need = 1 + vsnprintf (NULL, 0, format, ap);
-	if (buf->alloced < buf->used + need)
+/***** check if there is any memory *****/
+	/*
+	if (!buf->alloced) {
+		va_start (ap, format);
+		need = 1 + vsnprintf (NULL, 0, format, ap);
 		buffer_alloc(buf, need);
-	va_end (ap);
+		va_end (ap);
+	}
+	*/
+	/***** try to print to the buffer *****/
 	
 	va_start (ap, format);
-	result = vsprintf (buf->buf + buf->used, format, ap);
-	buf->used += result;
+	result = vsnprintf (buf->buf + buf->used,
+											buf->alloced - buf->used,
+											format,
+											ap);
 	va_end (ap);
+	
+	/***** check if there was enough memory *****/
+	
+	if (buf->alloced < buf->used + result + 2) {
+		va_start (ap, format);
+		need = 1 + vsnprintf (NULL, 0, format, ap);
+		buffer_alloc(buf, need);
+		va_end (ap);
+		
+		/***** reprint *****/
+		
+		va_start (ap, format);
+		result = vsprintf (buf->buf + buf->used,
+												format,
+												ap);
+		va_end (ap);
+	}
+		
+	buf->used += result;
 
-	return result;
+	return result + buf->indent * INDENTSPACES;
 }
 
 /*******************************************************************************
@@ -127,19 +158,36 @@ int buffer_printf_noindent(
 {
 
 	va_list ap;
-	int result = 0;
-	int need = 0;
+	size_t result = 0;
+	
+	/***** try to print to the buffer *****/
 	
 	va_start (ap, format);
-	need = 1 + vsnprintf (NULL, 0, format, ap);
-	if (buf->alloced < buf->used + need)
+	result = vsnprintf (buf->buf + buf->used,
+											buf->alloced - buf->used,
+											format,
+											ap);
+	va_end (ap);
+	
+	/***** check if there was enough memory *****/
+	
+	if (buf->alloced < buf->used + result + 2) {
+		va_start (ap, format);
+		size_t need = 1 + vsnprintf (NULL, 0, format, ap);
 		buffer_alloc(buf, need);
-	va_end (ap);
-	
-	va_start (ap, format);
-	result = vsprintf (buf->buf + buf->used, format, ap);
+		va_end (ap);
+		
+		/***** reprint *****/
+		
+		va_start (ap, format);
+		result = vsprintf (buf->buf + buf->used,
+												format,
+												ap);
+		va_end (ap);
+	}
+		
 	buf->used += result;
-	va_end (ap);
+	
 
 	return result;
 }
