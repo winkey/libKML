@@ -5,7 +5,7 @@ includedir=@includedir@
 
 Name: libKML
 Description: Library to output kml.
-Requires: libDataStruct libzip
+Requires: libDataStruct
 Version: @VERSION@
 Libs: -L${libdir} -lKML
 Cflags: -I${includedir}
