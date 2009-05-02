@@ -202,13 +202,12 @@ void KMZ_write(
 	KMZ *kmz)
 {
 	
-	time_t start = time(NULL);
 	zipFile zf = zipbuffer_open(kmz->kmzfile);
 	
 	DLList_iterate(&kmz->kmls, kmz_write_iterate, zf);
 	
 	zipbuffer_close(zf);
-	fprintf (stderr, "zipwrite %i\n", time(NULL) - start);
+	
 	return;
 }
 
