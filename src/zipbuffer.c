@@ -76,7 +76,7 @@ void zipbuffer_add (
 	buffer *buf)
 {
 #warning fixme i need info
-	zip_fileinfo zipfi;
+	zip_fileinfo zipfi = {};
 	if (zipOpenNewFileInZip(zF, name, &zipfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED,
 													 Z_DEFAULT_COMPRESSION))
 		ERROR("zipbuffer_add");
